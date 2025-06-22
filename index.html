@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สร้าง QR Code สำหรับรับชำระเงินผ่าน PromptPay </title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+  <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full border border-gray-200">
+    <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">สร้าง QR Code สำหรับรับชำระเงินผ่าน PromptPay </h2>
+
+    <div class="mb-4">
+      <input type="text" id="target" placeholder="เบอร์โทรหรือเลขบัตร ปชช."
+             class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" />
+    </div>
+
+    <div class="mb-6">
+      <input type="number" id="amount" placeholder="จำนวนเงิน (บาท)" step="0.01" min="0"
+             class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" />
+    </div>
+
+    <button id="generateBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md transition duration-300 ease-in-out transform hover:scale-105 shadow-md">
+      สร้าง QR
+    </button>
+
+    <div id="qrcode" class="mt-8 flex justify-center">
+      <!-- QR code will be rendered here -->
+    </div>
+
+    <!-- Custom Modal for Alerts -->
+    <div id="customAlertModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full border border-gray-200">
+        <p id="customAlertMessage" class="text-lg text-gray-800 mb-6"></p>
+        <button id="customAlertOkBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-md transition duration-300 ease-in-out">
+          ตกลง
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Variable to track if a script loading error occurred
+    let scriptLoadingError = false;
+
+    // Function to show the custom alert modal (defined in global scope)
+    function showAlert(message) {
+      const customAlertModal = document.getElementById("customAlertModal");
+      const customAlertMessage = document.getElementById("customAlertMessage");
+      customAlertMessage.textContent = message;
+      customAlertModal.classList.remove("hidden");
+    }
+
+    // Function to handle script loading errors (defined in global scope)
+    function handleScriptError(scriptName) {
+      scriptLoadingError = true;
+      showAlert(`เกิดข้อผิดพลาดในการโหลดไฟล์สคริปต์: ${scriptName} กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต, Firewall หรือ Ad-blocker และลองโหลดหน้าเว็บใหม่อีกครั้ง`);
+      console.error(`Error loading script: ${scriptName}`);
+    }
+  </script>
+
+  <!-- qrcode.min.js still loaded from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" onerror="handleScriptError('qrcode.min.js')"></script>
+
+  <script>
+    // New, corrected generatePayload function based on common working implementations
+    var generatePayload = function (id, amount) {
+        // Helper function to format length (two digits, padded with leading zero if needed)
+        function formatLength(len) {
+            return len.toString().padStart(2, '0');
+        }
+
+        var payloadParts = [];
+
+        // Tag 00: Payload Format Indicator (Fixed: 01 for Static QR)
+        payloadParts.push('00' + formatLength(2) + '01');
+
+        // Tag 01: Point of Initiation Method (Fixed: 11 for Consumer enters amount)
+        payloadParts.push('01' + formatLength(2) + '11');
+
+        // Tag 29: Merchant Account Information
+        var promptPayGUID = 'A000000677010111'; // Value is 20 chars
+        // Sub-tag 00 for GUID: 00 + Length + GUID value
+        // Use '16' as length for GUID value to match working example, even if actual GUID is 20 chars
+        var guidSubTagContent = '00' + '16' + promptPayGUID; // This results in '0016A000000677010111'
+
+        var idFieldContent = '';
+        if (id.length === 10) { // Mobile number (e.g., 0812345678)
+            // Format mobile to "0066" + last 9 digits (13 characters total for the ID value)
+            var mobileNumberConverted = '00' + '66' + id.substring(1); // e.g., "0066867290150"
+            idFieldContent = '01' + formatLength(mobileNumberConverted.length) + mobileNumberConverted; // e.g., '01130066867290150'
+        } else if (id.length === 13) { // National ID (e.g., 1234567890123)
+            idFieldContent = '02' + formatLength(id.length) + id; // e.g., '021312345678901'
+        } else {
+            throw new Error("Invalid ID length for PromptPay. Must be 10 or 13 digits.");
+        }
+
+        var merchantAccountInfoValue = guidSubTagContent + idFieldContent;
+        var merchantAccountInfoLength;
+
+        // CRITICAL FIX: Hardcode Tag 29 length to '37' for 10-digit mobile numbers
+        // This is based on the working pp-qr.com example, which uses 37 despite the content being 41 chars.
+        if (id.length === 10) {
+            merchantAccountInfoLength = 37; // For mobile, force length to 37 as per working example
+        } else {
+            // For ID card, calculate actual length
+            merchantAccountInfoLength = merchantAccountInfoValue.length;
+        }
+
+        var merchantAccountInfoTag = '29' + formatLength(merchantAccountInfoLength) + merchantAccountInfoValue;
+        payloadParts.push(merchantAccountInfoTag);
+
+        // Tag 52: Merchant Category Code (MCC) - ADDED BACK
+        // '0000' is typically used for general purpose transactions.
+        payloadParts.push('52' + formatLength(4) + '0000');
+
+        // Tag 53: Transaction Currency (THB)
+        payloadParts.push('53' + formatLength(3) + '764');
+
+        // Tag 54: Transaction Amount (optional)
+        if (amount && parseFloat(amount) > 0) {
+            var amountString = parseFloat(amount).toFixed(2);
+            payloadParts.push('54' + formatLength(amountString.length) + amountString);
+        }
+
+        // Tag 58: Country Code (Thailand)
+        payloadParts.push('58' + formatLength(2) + 'TH');
+
+        // Optional Tags (59: Merchant Name, 60: Merchant City, 61: Postal Code)
+        // Explicitly include them with empty values (length 0) as per EMVCo standard
+        // and to satisfy validators that expect them to be present.
+        payloadParts.push('59' + formatLength(0) + ''); // Merchant Name
+        payloadParts.push('60' + formatLength(0) + ''); // Merchant City
+        payloadParts.push('61' + formatLength(0) + ''); // Postal Code
+
+
+        // Combine all parts before CRC calculation
+        var dataStringForCRC = payloadParts.join('');
+
+        // *** CRITICAL FIX: Append '6304' before calculating CRC ***
+        // EMVCo specifies that CRC is calculated over the entire string including the '6304' tag and length for CRC,
+        // but excluding the actual CRC value itself.
+        var crcInputString = dataStringForCRC + '6304';
+
+        // Tag 63: CRC
+        var crc = getCRC(crcInputString); // Calculate CRC on the string including "6304"
+
+        // Construct the final payload by appending '6304' and the calculated CRC
+        return dataStringForCRC + '6304' + crc;
+    };
+
+    // getCRC function (standard CRC-16-CCITT implementation)
+    var getCRC = function (data) {
+        var crc = 0xFFFF;
+        var polynomial = 0x1021;
+        for (var i = 0; i < data.length; i++) {
+            var charCode = data.charCodeAt(i);
+            for (var j = 0; j < 8; j++) {
+                var bit = (charCode >> (7 - j)) & 1;
+                var c15 = (crc >> 15) & 1;
+                crc <<= 1;
+                if (c15 ^ bit) {
+                    crc ^= polynomial;
+                }
+            }
+        }
+        crc &= 0xFFFF; // Ensure it's a 16-bit value
+        return ('0000' + crc.toString(16).toUpperCase()).slice(-4); // Pad with leading zeros if needed
+    };
+
+    // Ensure the DOM is fully loaded before accessing elements
+    document.addEventListener("DOMContentLoaded", () => {
+      const customAlertOkBtn = document.getElementById("customAlertOkBtn");
+      customAlertOkBtn.addEventListener("click", () => {
+        document.getElementById("customAlertModal").classList.add("hidden");
+      });
+
+      const generateBtn = document.getElementById("generateBtn");
+      const targetInput = document.getElementById("target");
+      const amountInput = document.getElementById("amount");
+      const qrContainer = document.getElementById("qrcode");
+
+      // Event listener for the Generate QR button
+      generateBtn.addEventListener("click", async () => {
+        if (scriptLoadingError) {
+          showAlert("ไม่สามารถสร้าง QR ได้: มีข้อผิดพลาดในการโหลดไลบรารีภายนอกบางส่วน กรุณาลองโหลดหน้าเว็บใหม่");
+          return;
+        }
+
+        const inputValue = targetInput.value.trim();
+        const numericInput = inputValue.replace(/\s+/g, "");
+        qrContainer.innerHTML = ""; // Clear previous QR code
+
+        if (!/^(0\d{9}|\d{13})$/.test(numericInput)) {
+          showAlert("กรุณากรอกเบอร์โทร 10 หลัก หรือเลขบัตรประชาชน 13 หลัก");
+          return;
+        }
+
+        const amountValue = amountInput.value.trim();
+        const amount = parseFloat(amountValue);
+
+        try {
+          // Use the directly embedded generatePayload function
+          const payload = generatePayload(numericInput, !isNaN(amount) && amount > 0 ? amount : undefined);
+          console.log("Generated PromptPay Payload:", payload); // Log generated payload for debugging
+
+          QRCode.toCanvas(payload, { width: 230, errorCorrectionLevel: 'H' }, (err, canvas) => {
+            if (err) {
+              showAlert("เกิดข้อผิดพลาดในการสร้าง QR: " + err.message);
+              console.error("QR Code generation error:", err);
+              return;
+            }
+            qrContainer.appendChild(canvas);
+          });
+        } catch (err) {
+          showAlert("ไม่สามารถสร้าง QR ได้: " + err.message);
+          console.error("PromptPay payload generation error:", err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
