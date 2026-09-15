@@ -4,17 +4,22 @@
     "my-vip-pass-99"
   ],
   "channels": [
-    {
-      "name": "HUB Premiere 4K",
-      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/979906"
-    },
-    {
-      "name": "NOW Sport 4K",
-      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/979907"
-    },
+
     {
       "name": "Sky Sport TENNIS",
       "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/664451"
+    },
+    {
+      "name": "DORCEL",
+      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/1463893"
+    },
+	{
+      "name": "DORCEL.com",
+      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/1463846"
+    },
+    {
+      "name": "MILF",
+      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/1393458"
     }
   ]
 }
