@@ -1,0 +1,17 @@
+{
+  "tokens": [
+    "samorn159",
+    "my-vip-pass-99"
+  ],
+  "channels": [
+    {
+      "name": "ESPN",
+      "streamUrl": "http://alb4k.tv/live/MAGWWMC2NN/MAGYAEYZAD/973127.m3u8"
+    },
+    {
+      "name": "Sky Sport TENNIS",
+      "streamUrl": "http://vca.rk-dmx.xyz:80/6LUV9BPLV4CGZUV/Mby3QwsS0R/664451"
+    }
+  ]
+}
+
